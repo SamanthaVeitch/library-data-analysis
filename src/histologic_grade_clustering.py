@@ -25,7 +25,7 @@ args = parser.parse_args()
 
 def main():
     np.random.seed(args.seed)
-    df = pd.read_csv(args.input) # read data into pandas DataFrame
+    df = pd.read_csv(args.input, low_memory=False) # read data into pandas DataFrame
     ### organizing columns into 3 categories: i) metadata, ii) gene expression, and
     # iii) gene mutation
     
@@ -91,6 +91,9 @@ def main():
         axis=0
     ) * 100
 
+    print("\nHistologic grade percentages by cluster:")
+    print(cluster_grade_percent.round(2))
+
     ### visualization
     fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(15, 4))
     ax = ax.flatten()
@@ -104,6 +107,10 @@ def main():
 
     # number of patients in each cluster
     cluster_counts = pd.Series(clusters).value_counts().sort_index()
+
+    print("\nCluster sizes:")
+    print(cluster_counts)
+
     ax[1].bar(x=cluster_counts.index,
               height=cluster_counts.values, color='black')
     ax[1].set_title("Cluster Sizes", loc="left")
