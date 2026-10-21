@@ -1,68 +1,110 @@
 #!/usr/bin/env python3
+"""
+Analyze the relationship between gene expression and histologic tumor grade.
+
+This script uses MiniBatchKMeans to group breast cancer samples from the
+METABRIC dataset based on normalized gene-expression measurements.
+
+Hypothesis:
+    Gene-expression patterns can distinguish breast cancer tumors
+    associated with different histologic grades (1, 2, and 3).
+
+Methods:
+    1. Load the METABRIC dataset and identify gene-expression columns.
+    2. Cluster samples using MiniBatchKMeans with K=3.
+    3. Compare cluster assignments with known histologic grades.
+    4. Generate plots showing grade counts, cluster sizes, and the
+       histologic grade distribution within each cluster.
+
+The histologic grades are not used to fit the clustering model.
+"""
+
 import argparse
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-from sklearn.cluster import MiniBatchKMeans
 from pathlib import Path
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--input", default="data/METABRIC_RNA_Mutation.csv",
-                    help="Kaggle breast cancer dataset")
-parser.add_argument("--output", default="figures/histologic_grade_clustering.png")
-parser.add_argument("--seed", default=0, type=int)
-args = parser.parse_args()
+import matplotlib.pyplot as plt
+import pandas as pd
+from sklearn.cluster import MiniBatchKMeans
 
-# hypothesis: gene expression patterns can separate breast cancers by
-# histologic grade (1, 2, or 3).
-# note: gene expression values are normalized z-scores relative to
-# reference samples.
-# approach: i) count num. cases per histologic grade,
-# ii) use MiniBatchKMeans with k=3 to cluster patients based on gene
-# expression, iii) compare cluster assignments with actual tumor grades.
-# figures: i) bar plot of histologic grades, ii) cluster sizes,
-# iii) histologic grade distribution within each cluster.
 
 def main():
-    np.random.seed(args.seed)
-    df = pd.read_csv(args.input, low_memory=False) # read data into pandas DataFrame
-    ### organizing columns into 3 categories: i) metadata, ii) gene expression, and
-    # iii) gene mutation
-    
-    mutation_col_suffix = '_mut'
-    col_idx_gene_expr_start = -1 # first column of gene expression
-    col_idx_mut_start = -1 # first column of gene mutation
-    col_idx_histologic_grade = -1 # target
-    
-    for i,col in enumerate(df.columns):
-        if col == 'neoplasm_histologic_grade':
+    """Cluster METABRIC samples and visualize histologic grade patterns."""
+
+    # Parse command-line arguments.
+    parser = argparse.ArgumentParser(
+        description="Cluster METABRIC gene expression by histologic grade."
+    )
+    parser.add_argument(
+        "--input",
+        default="data/METABRIC_RNA_Mutation.csv",
+        help="Path to the METABRIC dataset"
+    )
+    parser.add_argument(
+        "--output",
+        default="figures/histologic_grade_clustering.png",
+        help="Path to save the resulting figure"
+    )
+    parser.add_argument(
+        "--seed",
+        default=0,
+        type=int,
+        help="Random seed for reproducible clustering"
+    )
+    args = parser.parse_args()
+
+    # Load the METABRIC dataset into a pandas DataFrame.
+    df = pd.read_csv(args.input, low_memory=False)
+
+    # The dataset contains three column groups:
+    # 1. Patient and tumor metadata
+    # 2. Normalized gene-expression measurements
+    # 3. Gene-mutation information
+    #
+    # Identify the beginning of the expression and mutation columns,
+    # along with the histologic grade column.
+    mutation_col_suffix = "_mut"
+    col_idx_gene_expr_start = -1
+    col_idx_mut_start = -1
+    col_idx_histologic_grade = -1
+
+    for i, col in enumerate(df.columns):
+        if col == "neoplasm_histologic_grade":
             col_idx_histologic_grade = i
-        if col == 'brca1':
+
+        if col == "brca1":
             col_idx_gene_expr_start = i
+
         if col.endswith(mutation_col_suffix):
             col_idx_mut_start = i
-            break # exit loop
-    # verify col indices were discovered
-    assert (
-        all([
-            col_idx_gene_expr_start != -1,
-            col_idx_mut_start != -1,
-            col_idx_histologic_grade != -1
-        ])
-    )
+            break
 
-    ### histologic grade distribution
+    # Verify that all required columns were identified.
+    if not all([
+        col_idx_gene_expr_start != -1,
+        col_idx_mut_start != -1,
+        col_idx_histologic_grade != -1
+    ]):
+        raise ValueError("Required METABRIC columns were not found.")
+
+    # Extract known histologic grades (1, 2, or 3).
+    # Missing grades are excluded automatically from value_counts().
     target = df.iloc[:, col_idx_histologic_grade]
     target_counts = target.value_counts().sort_index()
 
     print("Histologic grade distribution:")
     print(target_counts)
 
-    ### gene expression data
+    # Extract the normalized gene-expression features.
+    # Each row represents a tumor sample and each column a gene.
+    # Mutation columns and clinical metadata are excluded.
     x = df.iloc[:, col_idx_gene_expr_start:col_idx_mut_start]
-    assert (x.isna().sum().sum() == 0)
 
-    ### MiniBatchKMeans clustering
+    # MiniBatchKMeans requires complete numerical input data.
+    if x.isna().any().any():
+        raise ValueError("Gene-expression data contains missing values.")
+
+    # Group samples into three clusters using gene expression only.
+    # The random seed makes the clustering reproducible.
     model = MiniBatchKMeans(
         n_clusters=3,
         random_state=args.seed
@@ -70,22 +112,24 @@ def main():
 
     clusters = model.fit_predict(x)
 
-    ### compare clusters with histologic grade
+    # Associate each sample's cluster with its known histologic grade.
     results = pd.DataFrame({
-        'Cluster': clusters,
-        'Histologic Grade': target
+        "Cluster": clusters,
+        "Histologic Grade": target
     })
 
-    # remove patients without a known histologic grade
-    results = results.dropna(subset=['Histologic Grade'])
+    # Samples with unknown grades are still included in clustering,
+    # but cannot be included in the grade comparison.
+    results = results.dropna(subset=["Histologic Grade"])
 
-    # count each grade within each cluster
+    # Count the number of tumors of each grade in each cluster.
     cluster_grade_counts = pd.crosstab(
-        results['Cluster'],
-        results['Histologic Grade']
+        results["Cluster"],
+        results["Histologic Grade"]
     )
 
-    # calculate percentage of each grade within each cluster
+    # Convert grade counts into percentages within each cluster.
+    # Each row sums to 100%.
     cluster_grade_percent = cluster_grade_counts.div(
         cluster_grade_counts.sum(axis=1),
         axis=0
@@ -94,50 +138,59 @@ def main():
     print("\nHistologic grade percentages by cluster:")
     print(cluster_grade_percent.round(2))
 
-    ### visualization
-    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(15, 4))
-    ax = ax.flatten()
-
-    # histologic grade distribution
-    ax[0].bar(x=target_counts.index,
-              height=target_counts.values, color='black')
-    ax[0].set_title("Histologic Grade Distribution", loc="left")
-    ax[0].set_xlabel("Histologic Grade")
-    ax[0].set_ylabel("Count")
-
-    # number of patients in each cluster
+    # Count all samples assigned to each cluster, including those
+    # without a known histologic grade.
     cluster_counts = pd.Series(clusters).value_counts().sort_index()
 
     print("\nCluster sizes:")
     print(cluster_counts)
 
-    ax[1].bar(x=cluster_counts.index,
-              height=cluster_counts.values, color='black')
+    # Create three plots to summarize the clustering analysis.
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(15, 4))
+    ax = ax.flatten()
+
+    # Plot 1: Number of tumors in each histologic grade.
+    ax[0].bar(
+        x=target_counts.index,
+        height=target_counts.values,
+        color="black"
+    )
+    ax[0].set_title("Histologic Grade Distribution", loc="left")
+    ax[0].set_xlabel("Histologic Grade")
+    ax[0].set_ylabel("Count")
+
+    # Plot 2: Number of tumor samples assigned to each cluster.
+    ax[1].bar(
+        x=cluster_counts.index,
+        height=cluster_counts.values,
+        color="black"
+    )
     ax[1].set_title("Cluster Sizes", loc="left")
     ax[1].set_xlabel("Cluster")
     ax[1].set_ylabel("Count")
 
-    # histologic grade distribution within each cluster
+    # Plot 3: Percentage of each histologic grade within each cluster.
     cluster_grade_percent.plot(
-        kind='bar',
+        kind="bar",
         stacked=True,
         ax=ax[2]
     )
-
     ax[2].set_title("Histologic Grade by Cluster", loc="left")
     ax[2].set_xlabel("Cluster")
     ax[2].set_ylabel("Percentage (%)")
     ax[2].legend(title="Histologic Grade")
 
-    for i in range(len(ax)):
-        ax[i].spines['top'].set_visible(False)
-        ax[i].spines['right'].set_visible(False)
+    # Remove the top and right plot borders for readability.
+    for axis in ax:
+        axis.spines["top"].set_visible(False)
+        axis.spines["right"].set_visible(False)
 
-    plt.tight_layout()
-
+    # Create the output directory if it does not already exist.
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Save the final figure and close it to release resources.
+    plt.tight_layout()
     plt.savefig(output_path)
     plt.close(fig)
 
