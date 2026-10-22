@@ -6,13 +6,17 @@ This project uses Python scientific software libraries to analyze the METABRIC b
 
 ### Introduction
 
-The objective of this analysis is to investigate whether breast cancer tumors with similar gene-expression profiles also share similar histologic grades. Histologic grade describes the appearance and aggressiveness of tumor cells and is categorized as Grade 1, Grade 2, or Grade 3.
+The objective of this analysis is to investigate whether breast cancer tumors with similar gene-expression profiles also share similar histologic grades. 
+
+Histologic grade describes the appearance of tumor cells under a microscope and is used to estimate how aggressively tumor cells will grow.  Breast cancer is categorized as Grade 1 (low), Grade 2 (intermediate), or Grade 3 (high).
+
+Gene-expression data for 331 genes are represented using mRNA z-scores. The z-score indicates how many standard deviations a gene's expression in a particular tumor is above or below the mean expression of that gene in the reference population.
 
 We use MiniBatchKMeans, an unsupervised machine-learning algorithm, to group tumor samples based on normalized gene-expression measurements. Our hypothesis is that tumors with similar gene-expression patterns may also have similar histologic grades.
 
 ### Results
 
-The METABRIC dataset contains 1,904 tumor samples, of which 1,832 have known histologic grades. Among samples with known grades, 165 are Grade 1, 740 are Grade 2, and 927 are Grade 3.
+The METABRIC dataset contains 1,904 tumor samples, of which 1,832 have known histologic grades. Among samples with known grades, 165 are Grade 1, 740 are Grade 2, and 927 are Grade 3. 
 
 MiniBatchKMeans was used to divide the samples into three clusters based on their gene-expression measurements.
 
@@ -22,11 +26,13 @@ MiniBatchKMeans was used to divide the samples into three clusters based on thei
 | 1 | 1,149 | 12.67 | 50.14 | 37.19 |
 | 2 | 326 | 7.52 | 43.79 | 48.69 |
 
+Histologic grades were not used to fit the clustering model. Samples with missing grades were included in clustering but excluded from the grade comparison.
+
 Cluster 0 contained a substantially higher proportion of Grade 3 tumors (87.17%) compared with the other clusters. Clusters 1 and 2 showed more mixed distributions of histologic grades.
 
 These results suggest that gene-expression patterns may be associated with histologic grade, particularly among samples assigned to Cluster 0. However, the three clusters did not correspond directly to the three histologic grades.
 
-The percentages represent patients with known histologic grades within each cluster, while the cluster sizes include all patients.
+Grade percentages are calculated using only tumor samples with known histologic grades within each cluster, while cluster sizes include all 1,904 tumor samples.
 
 ![Histologic grade clustering results](figures/histologic_grade_clustering.png)
 
@@ -40,8 +46,6 @@ The analysis was performed in Python using pandas, Matplotlib, and scikit-learn.
 4. Assigned each tumor sample to a cluster based on gene-expression similarity.
 5. Compared cluster assignments with known histologic grades using pandas.
 6. Generated three plots showing histologic grade distribution, cluster sizes, and grade percentages within each cluster.
-
-Histologic grades were not used to fit the clustering model. Samples with missing grades were included in clustering but excluded from the grade comparison.
 
 The gene-expression measurements were already normalized as z-scores, so no additional feature scaling was applied. Three clusters were selected to explore their correspondence with the three histologic grades, rather than through an optimization procedure.
 
@@ -93,21 +97,3 @@ It also generates and saves the visualization to:
 ```text
 figures/histologic_grade_clustering.png
 ```
-
-
-## Repository Structure
-
-```text
-library-data-analysis/
-├── .gitignore
-├── environment.yml
-├── README.md
-├── data/
-│   └── METABRIC_RNA_Mutation.csv
-├── figures/
-│   └── histologic_grade_clustering.png
-└── src/
-    └── histologic_grade_clustering.py
-```
-
-The `data/` directory and CSV file are created or downloaded locally. The `figures/` directory contains the generated scientific visualization, which is included in the repository.
