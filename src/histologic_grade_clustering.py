@@ -20,11 +20,12 @@ The histologic grades are not used to fit the clustering model.
 """
 
 import argparse
-from pathlib import Path
-
 import matplotlib.pyplot as plt
 import pandas as pd
+from pathlib import Path
 from sklearn.cluster import MiniBatchKMeans
+from sklearn.decomposition import PCA
+from sklearn.metrics import silhouette_score
 
 
 def main():
@@ -145,6 +146,18 @@ def main():
     print("\nCluster sizes:")
     print(cluster_counts)
 
+    # Calculate the total variance explained by the PCA transformation.
+    pca = PCA(n_components=2)
+    x_pca = pca.fit_transform(x)
+    explained_variance = pca.explained_variance_ratio_.sum() * 100
+    print("\nExplained Variance:")
+    print(f"{explained_variance:.2f}%")
+
+    # Calculate the silhouette score to evaluate clustering quality.
+    score = silhouette_score(x, clusters)
+    print("\nSilhouette Score:")
+    print(score)
+
     # Create three plots to summarize the clustering analysis.
     fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(15, 4))
     ax = ax.flatten()
@@ -159,15 +172,32 @@ def main():
     ax[0].set_xlabel("Histologic Grade")
     ax[0].set_ylabel("Count")
 
-    # Plot 2: Number of tumor samples assigned to each cluster.
-    ax[1].bar(
-        x=cluster_counts.index,
-        height=cluster_counts.values,
-        color="black"
+    # Plot 2: Scatter plot of tumors by cluster assignment.
+    # Plot tumors colored by their MiniBatchKMeans cluster.
+    ax[1].scatter = ax[1].scatter(
+        x_pca[:, 0],
+        x_pca[:, 1],
+        c=clusters,
+        cmap="viridis",
+        s=12,
+        alpha=0.6
     )
-    ax[1].set_title("Cluster Sizes", loc="left")
-    ax[1].set_xlabel("Cluster")
-    ax[1].set_ylabel("Count")
+
+    ax[1].set_xlabel(
+        f"PC1 ({pca.explained_variance_ratio_[0] * 100:.2f}%"
+        f" variance explained)"
+    )
+
+    ax[1].set_ylabel(
+        f"PC2 ({pca.explained_variance_ratio_[1] * 100:.2f}%"
+        f" variance explained)"
+    )
+    ax[1].set_title("MiniBatchKMeans Breast Cancer Clusters")
+
+    ax[1].legend(
+        handles=ax[1].scatter.legend_elements()[0],
+        labels=["Cluster 0", "Cluster 1", "Cluster 2"]
+    )
 
     # Plot 3: Percentage of each histologic grade within each cluster.
     cluster_grade_percent.plot(
