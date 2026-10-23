@@ -8,7 +8,7 @@ This project uses Python scientific software libraries to analyze the METABRIC b
 
 The objective of this analysis is to investigate whether breast cancer tumors with similar gene-expression profiles also share similar histologic grades. 
 
-Histologic grade describes the appearance of tumor cells under a microscope and is used to estimate how aggressively tumor cells will grow.  Breast cancer is categorized as Grade 1 (low), Grade 2 (intermediate), or Grade 3 (high).
+Histologic grade describes the microscopic appearance of tumor cells and is used to estimate the tumor cells likely growth behavior.  Breast cancer is categorized as Grade 1 (low), Grade 2 (intermediate), or Grade 3 (high).
 
 Gene-expression data for 331 genes are represented using mRNA z-scores. The z-score indicates how many standard deviations a gene's expression in a particular tumor is above or below the mean expression of that gene in the reference population.
 
@@ -20,19 +20,19 @@ The METABRIC dataset contains 1,904 tumor samples, of which 1,832 have known his
 
 MiniBatchKMeans was used to divide the samples into three clusters based on their gene-expression measurements.
 
+To visualize the clusters, Principal Component Analysis (PCA) was used to reduce the 331 gene-expression measurements to two principal components. The first two principal components explained 14.69% of the total variation in gene expression. The model produced a silhouette score of 0.067, indicating weak separation between clusters in the original 331-dimensional gene-expression space.
+
 | Cluster | Total Samples | Grade 1 (%) | Grade 2 (%) | Grade 3 (%) |
 |---|---:|---:|---:|---:|
 | 0 | 429 | 0.48 | 12.35 | 87.17 |
 | 1 | 1,149 | 12.67 | 50.14 | 37.19 |
 | 2 | 326 | 7.52 | 43.79 | 48.69 |
 
-Histologic grades were not used to fit the clustering model. Samples with missing grades were included in clustering but excluded from the grade comparison.
+Grade percentages are calculated using only tumor samples with known histologic grades within each cluster, while cluster sizes include all 1,904 tumor samples. Histologic grades were not used to fit the clustering model. Samples with missing grades were included in clustering but excluded from the grade comparison. 
 
 Cluster 0 contained a substantially higher proportion of Grade 3 tumors (87.17%) compared with the other clusters. Clusters 1 and 2 showed more mixed distributions of histologic grades.
 
 These results suggest that gene-expression patterns may be associated with histologic grade, particularly among samples assigned to Cluster 0. However, the three clusters did not correspond directly to the three histologic grades.
-
-Grade percentages are calculated using only tumor samples with known histologic grades within each cluster, while cluster sizes include all 1,904 tumor samples.
 
 ![Histologic grade clustering results](figures/histologic_grade_clustering.png)
 
@@ -44,8 +44,10 @@ The analysis was performed in Python using pandas, Matplotlib, and scikit-learn.
 2. Extracted normalized gene-expression measurements, excluding clinical metadata and mutation columns.
 3. Applied MiniBatchKMeans with three clusters (`n_clusters=3`) and a random seed of 0.
 4. Assigned each tumor sample to a cluster based on gene-expression similarity.
-5. Compared cluster assignments with known histologic grades using pandas.
-6. Generated three plots showing histologic grade distribution, cluster sizes, and grade percentages within each cluster.
+5. Applied Principal Component Analysis (PCA) to reduce the 331 gene-expression features to two dimensions for visualization.
+6. Calculated the silhouette score using the original 331 gene-expression features to evaluate cluster separation
+7. Compared cluster assignments with known histologic grades using pandas.
+8. Generated three plots showing histologic grade distribution, molecular clusters in PCA space, and histologic grade percentages within each cluster.
 
 The gene-expression measurements were already normalized as z-scores, so no additional feature scaling was applied. Three clusters were selected to explore their correspondence with the three histologic grades, rather than through an optimization procedure.
 
